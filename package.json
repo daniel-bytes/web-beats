@@ -1,0 +1,9 @@
+{
+  "name": "web-beats",
+  "version": "0.0.1",
+  "author": "Daniel Battaglia <daniels.bytes@gmail.com>",
+  "dependencies": {
+    "express": "2.4.4",
+    "socket.io": "0.7.9"
+  }
+}

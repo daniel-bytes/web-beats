@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<title>test</title>
+	
+	<script type="text/javascript" src="/js/jquery-1.6.1.min.js"></script>
+	<script type="text/javascript" src="/js/seq_client.js"></script>
+	<script type="text/javascript" src="/js/seq_clock.js"></script>
+	<script type="text/javascript" src="/js/seq_misc.js"></script>
+	<script type="text/javascript" src="/js/socket.io.min.js"></script>
+</head>
+<body>
+	<form name="mainForm" action="/" method="post">
+
+	<div id="chat_host" style="border:1px solid black; padding-left: 10px; padding-top: 2px; padding-bottom:1px; margin-top: 8px;">
+		<div id="sequencer_host">
+			<div class="actions"><p id="action">&nbsp;</p></div>
+			<div class="actions"><p id="click">&nbsp;</p></div>
+			<br/>
+			<div>
+				<input type="hidden" id="sessionId" value="session1" />
+				<input type="hidden" id="clientId" value="client1" />
+				
+				<input type="button" id="start" value="start" style="width:60px;" /> &nbsp;&nbsp;
+				<input type="button" id="pause" value="pause" style="width:60px;" /> &nbsp;&nbsp;
+				<input type="button" id="stop"  value="stop"  style="width:60px;" /> &nbsp;&nbsp;
+				<input type="button" id="clear" value="clear" style="width:60px;" /> &nbsp;&nbsp;
+			</div>
+			<br/>
+			<audio id="drums1">
+				<source src="http://kid-sputnik.com/samples/erase_classics.wav" preload="auto" />
+			</audio>
+			<canvas id="seq" width="1000px" height="50px"></canvas>
+			
+			<script> 
+				var host = "http://localhost:8080";
+				
+				function action_update(txt) {
+					$("#action").html(txt);
+				}
+
+				function esc(msg) {
+					return msg.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+				}
+
+				function init() {
+					action_update("Connecting to host " + host);
+					
+					var sessionId = $("#sessionId").val();
+					var clientId = $("#clientId").val();
+					var bpm = 120;
+					var stepsPerBar = 16;
+					var bars = 1;
+					var canvas = document.getElementById("seq");
+					var audio_objects = [ document.getElementById("drums1") ]; // TODO
+					
+					document.clock = new SequencerClock(bpm, stepsPerBar, bars);
+					document.seq = new Sequencer(host, sessionId, clientId, document.clock, canvas, audio_objects);
+
+					// setup ui handlers
+					$("#start").click(function() {
+						var obj = $(this);
+						if (obj.val() === "start") {
+							document.seq.start();
+							obj.val("restart");
+						}
+						else {
+							document.seq.restart();
+						}
+					});
+					
+					$("#pause").click(function() {
+						document.seq.pause();
+						$("#start").val("start");
+					})
+
+					$("#stop").click(function() {
+						document.seq.stop();
+						$("#start").val("start");
+					})
+
+					$("#clear").click(function() {
+						document.seq.clear();
+					})
+					
+					// connect socket
+				}
+			</script>
+		</div>
+
+		<script>
+			$(document).ready(function() {
+				init();
+			})
+		</script>
+
+	</div>
+	</form>
+	<!-- End Socket.IO Test -->
+</body>
+</html>

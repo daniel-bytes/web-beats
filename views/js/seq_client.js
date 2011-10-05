@@ -16,7 +16,7 @@ function Sequencer(host, sessionId, clientId, clock, canvas, audio_objects) {
 	this._canvas = canvas;
 	this._draw_context = this._canvas.getContext("2d");
 	this._audio_objects = audio_objects;
-	this._states = [];
+	this._states = null;
 	this._padding_xy = 2;
 	this._padding_hw = 5;
 	
@@ -248,7 +248,7 @@ Sequencer.prototype.start = function() {
 }
 
 Sequencer.prototype.restart = function() {
-	this.send_message("", { sessionId: this._sessionId, clientId: this._clientId });
+	this.send_message("restart", { sessionId: this._sessionId, clientId: this._clientId });
 }
 
 Sequencer.prototype.pause = function() {
@@ -311,7 +311,8 @@ Sequencer.prototype.initializeState = function(reset) {
 	for (var o = 0; o < this._audio_objects.length; o++) {
 		var arr = [];
 		for (var i = 0; i < steps; i++) {
-			var value = ( !!temp_states && i < temp_states[o].length ? temp_states[o][i] : 0 );
+//			var value = ( temp_states != null && i < temp_states[o].length ? temp_states[o][i] : 0 );
+			var value = 0;
 			arr.push(value);
 		}
 		this._states.push(arr);

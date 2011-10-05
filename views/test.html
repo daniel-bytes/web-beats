@@ -14,7 +14,7 @@
 <body>
 	<form name="mainForm" action="/" method="post">
 
-	<div id="chat_host" style="border:1px solid black; padding-left: 10px; padding-top: 2px; padding-bottom:1px; margin-top: 8px;">
+	<div id="chat_host" style="border:1px solid black; padding-left: 10px; padding-top: 2px; padding-bottom:50px; margin-top: 8px;">
 		<div id="sequencer_host">
 			<div class="actions"><p id="action">&nbsp;</p></div>
 			<div class="actions"><p id="click">&nbsp;</p></div>
@@ -32,7 +32,18 @@
 			<audio id="drums1">
 				<source src="http://kid-sputnik.com/samples/erase_classics.wav" preload="auto" />
 			</audio>
-			<canvas id="seq" width="1000px" height="50px"></canvas>
+			<audio id="drums2">
+				<source src="http://kid-sputnik.com/samples/erase_chicagosnare.wav" preload="auto" />
+			</audio>
+			<audio id="drums3">
+				<source src="http://kid-sputnik.com/samples/erase_diehat.wav" preload="auto" />
+			</audio>
+			<audio id="drums4">
+				<source src="http://kid-sputnik.com/samples/erase_fakedopen.wav" preload="auto" />
+			</audio>
+			
+			<div style="padding: 20px; border: 1px solid #aaa;">
+			<canvas id="seq" width="1000px" height="200px"></canvas>
 			
 			<script> 
 				var host = window.location.hostname;
@@ -54,7 +65,13 @@
 					var stepsPerBar = 16;
 					var bars = 1;
 					var canvas = document.getElementById("seq");
-					var audio_objects = [ document.getElementById("drums1") ]; // TODO
+					var audio_objects = [];
+					
+					for (var i = 1;;i++) {
+						var drum = document.getElementById("drums" + i);
+						if (drum) audio_objects.push(drum);
+						else break;
+					}
 					
 					document.clock = new SequencerClock(bpm, stepsPerBar, bars);
 					document.seq = new Sequencer(host, sessionId, clientId, document.clock, canvas, audio_objects);

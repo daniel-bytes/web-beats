@@ -27,7 +27,7 @@ function Sequencer(bpm, stepsPerBar, bars, tracks, socket, log_function) {
 	log = function(message,data) { log_function("Sequencer", message,data); }
 	
 	log("new Sequencer created");
-	
+
 	for (var o = 0; o < this._tracks; o++) {
 		var arr = [];
 		for (var i = 0; i < (this._bars * this._stepsPerBar); i++) {
@@ -35,6 +35,7 @@ function Sequencer(bpm, stepsPerBar, bars, tracks, socket, log_function) {
 		}
 		this._states.push(arr);
 	}
+	log("states", this._states)
 }
 
 // Properties

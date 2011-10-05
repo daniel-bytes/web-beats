@@ -3,7 +3,7 @@
  */
 
 // globals / imports
-var port = 8080
+var port = process.env.PORT || 8080
 , application_server = null
 , messaging_server = null
 , express = require("express")

@@ -14,7 +14,7 @@ var port = process.env.PORT || 8080
 , seq = require("./seq");
 
 // functions
-var LOG_DISABLE = ["WebServer"];
+var LOG_DISABLE = [];
 function log(source, message, data) {
 	if (LOG_DISABLE.indexOf(source) > -1) return;
 	var str = "** " + source;

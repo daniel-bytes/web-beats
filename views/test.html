@@ -6,10 +6,13 @@
 	<title>test</title>
 	
 	<script type="text/javascript" src="/js/jquery-1.6.1.min.js"></script>
+	<script type="text/javascript" src="/js/socket.io.min.js"></script>
+	<script type="text/javascript" src="/js/Audiolet.min.js"></script>
+	<script type="text/javascript" src="/js/audiofile.js"></script>
 	<script type="text/javascript" src="/js/seq_client.js"></script>
 	<script type="text/javascript" src="/js/seq_clock.js"></script>
 	<script type="text/javascript" src="/js/seq_misc.js"></script>
-	<script type="text/javascript" src="/js/socket.io.min.js"></script>
+	<script type="text/javascript" src="/js/samplechannel.js"></script>
 </head>
 <body>
 	<form name="mainForm" action="/" method="post">
@@ -29,19 +32,6 @@
 				<input type="button" id="clear" value="clear" style="width:60px;" /> &nbsp;&nbsp;
 			</div>
 			<br/>
-			<audio id="drums1">
-				<source src="http://kid-sputnik.com/samples/erase_classics.wav" preload="auto" />
-			</audio>
-			<audio id="drums2">
-				<source src="http://kid-sputnik.com/samples/erase_chicagosnare.wav" preload="auto" />
-			</audio>
-			<audio id="drums3">
-				<source src="http://kid-sputnik.com/samples/erase_diehat.wav" preload="auto" />
-			</audio>
-			<audio id="drums4">
-				<source src="http://kid-sputnik.com/samples/erase_fakedopen.wav" preload="auto" />
-			</audio>
-			
 			<div style="padding: 20px; border: 1px solid #aaa;">
 			<canvas id="seq" width="1000px" height="200px"></canvas>
 			
@@ -65,16 +55,14 @@
 					var stepsPerBar = 16;
 					var bars = 1;
 					var canvas = document.getElementById("seq");
-					var audio_objects = [];
+					var paths = [ 
+						"/assets/erase_classics.wav", 
+						"/assets/erase_chicagosnare.wav", 
+						"/assets/erase_diethat.wav", 
+						"/assets/erase_fakedopen.wav"
+					];	
 					
-					for (var i = 1;;i++) {
-						var drum = document.getElementById("drums" + i);
-						if (drum) audio_objects.push(drum);
-						else break;
-					}
-					
-					document.clock = new SequencerClock(bpm, stepsPerBar, bars);
-					document.seq = new Sequencer(host, sessionId, clientId, document.clock, canvas, audio_objects);
+					document.seq = new Sequencer(host, sessionId, clientId, bpm, stepsPerBar, bars, canvas, paths);
 
 					// setup ui handlers
 					$("#start").click(function() {
@@ -101,8 +89,6 @@
 					$("#clear").click(function() {
 						document.seq.clear();
 					})
-					
-					// connect socket
 				}
 			</script>
 		</div>
@@ -114,6 +100,7 @@
 		</script>
 
 	</div>
+	<p id="test"></p>
 	</form>
 	<!-- End Socket.IO Test -->
 </body>

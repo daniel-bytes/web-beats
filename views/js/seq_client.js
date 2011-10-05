@@ -1,24 +1,44 @@
 // NOTE: Requires socket.io and jquery libraries
-function Sequencer(host, sessionId, clientId, clock, canvas, audio_objects) {
+function Sequencer(host, sessionId, clientId, bpm, stepsPerBar, bars, canvas, samples) {
 	log("Sequencer.ctor - begin")
 	if (!host) throw new Error("Missing host");
 	if (!sessionId) throw new Error("Missing sessionId");
 	if (!clientId) throw new Error("Missing clientId");
-	if (!clock) throw new Error("Missing clock");
+	if (!bpm) throw new Error("Missing bpm");
+	if (!stepsPerBar) throw new Error("Missing stepsPerBar");
+	if (!bars) throw new Error("Missing bars");
 	if (!canvas) throw new Error("Missing canvas");
-	if (!audio_objects) throw new Error("Missing audio_objects");
+	if (!samples) throw new Error("Missing samples");
 	
 	this._host = host;
 	this._sessionId = sessionId;
 	this._clientId = clientId;
-	this._clock = clock;
+	this._bpm = bpm;
+	this._stepsPerBar = stepsPerBar;
+	this._bars = bars;
 	this._socket = io.connect(host);
 	this._canvas = canvas;
 	this._draw_context = this._canvas.getContext("2d");
-	this._audio_objects = audio_objects;
 	this._states = null;
 	this._padding_xy = 2;
 	this._padding_hw = 5;
+	this._bufferSize = 65536;
+	this._sampleRate = 44100;
+	this._latency = 1000 * this._bufferSize / this._sampleRate;
+	this._audiolet = new Audiolet(this._sampleRate, 2, this._bufferSize);
+	this._audiolet.scheduler.setTempo(this._bpm);
+	this._audio_objects = [];
+    this._durations = [1 / (stepsPerBar / 4)];
+	this._transport_state = TransportStates.stopped;
+	this._position = 0;
+	this._sequencer_events = [];
+	
+	for (var i = 0; i < samples.length; i++) {
+		this._audio_objects.push(
+			new SampleChannel(this._audiolet, samples[i]));
+			
+		this._sequencer_events.push(null);
+	}
 	
 	// setup
 	this.initializeState(true);
@@ -35,21 +55,9 @@ function Sequencer(host, sessionId, clientId, clock, canvas, audio_objects) {
 					   on: new Date(),
 					   active: false };
 	
-	// -- clock handlers
-	this._clock.setClockCallback(function(c) {
-//		log_if("Sequencer.clock => clockCallback", _ticks++ === 0)
-		_self.triggerAudio();
-		_self.refreshCanvas();
-	});
-	
-	this._clock.setPropertyChangedCallback(function(c, prop) {
-		log("Sequencer.clock => propertyCallback: " + prop)
-//		_self.initializeState(false);
-		_self.refreshCanvas();
-	});
+	// -- sequencer: see https://github.com/oampo/Audiolet/blob/master/examples/drum-machine/js/audiolet_app.js)
 	
 	// -- canvas handlers
-
 	this._canvas.addEventListener('mousedown', function(evt) {
 		var temp_pos = _self.getCanvasCellPosition(evt);
 		
@@ -123,31 +131,81 @@ function Sequencer(host, sessionId, clientId, clock, canvas, audio_objects) {
 	
 	// -- socket handlers
 	this._socket.on('start_response', function (x) {
-		log("Sequencer.socket => start_response callback")
-		_self._clock.start();
-		_self.refreshCanvas();
-		_ticks = 0;
-  	});
+		log("Sequencer.socket => start_response callback : transport state = " + _self._transport_state)
+		if (_self._transport_state === TransportStates.running) return;
+
+		_self._position = 0;
+		
+		_self._sequencer_events[0] = _self._audiolet.scheduler.play(
+			[new PSequence(_self._states[0], Infinity)],
+			new PSequence(_self._durations, Infinity),
+			function(p) {
+				if (p > 0) {
+					_self._audio_objects[0].getGain().gain.setValue(p * p);
+			    	_self._audio_objects[0].getTrigger().trigger.setValue(1);
+				}
+
+				_self.refreshCanvas();
+				if (++_self._position >= _self._states[0].length) _self._position = 0;
+			}
+	    );
+	
+		_self._sequencer_events[1] = _self._audiolet.scheduler.play(
+			[new PSequence(_self._states[1], Infinity)],
+			new PSequence(_self._durations, Infinity),
+			function(p) {
+				if (p > 0) {
+					_self._audio_objects[1].getGain().gain.setValue(p * p);
+			    	_self._audio_objects[1].getTrigger().trigger.setValue(1);
+				}
+			}
+	    );
+	
+		_self._sequencer_events[2] = _self._audiolet.scheduler.play(
+			[new PSequence(_self._states[2], Infinity)],
+			new PSequence(_self._durations, Infinity),
+			function(p) {
+				if (p > 0) {
+					_self._audio_objects[2].getGain().gain.setValue(p * p);
+			    	_self._audio_objects[2].getTrigger().trigger.setValue(1);
+				}
+			}
+	    );
+	
+		_self._sequencer_events[3] = _self._audiolet.scheduler.play(
+			[new PSequence(_self._states[3], Infinity)],
+			new PSequence(_self._durations, Infinity),
+			function(p) {
+				if (p > 0) {
+					_self._audio_objects[3].getGain().gain.setValue(p * p);
+			    	_self._audio_objects[3].getTrigger().trigger.setValue(1);
+				}
+			}
+	    );
+	
+		_self._transport_state = TransportStates.running;
+	});
 
 	this._socket.on('restart_response', function (x) {
 		log("Sequencer.socket => restart_response callback")
-		_self._clock.restart();
-		_self.refreshCanvas();
-		_ticks = 0;
+// TODO
   	});
 
 	this._socket.on('pause_response', function (x) {
 		log("Sequencer.socket => pause_response callback")
-		_self._clock.pause();
-		_self.refreshCanvas();
+// TODO
 		_ticks = 0;
   	});
 
 	this._socket.on('stop_response', function (x) {
-		log("Sequencer.socket => stop_response callback")
-		_self._clock.stop();
-		_self.refreshCanvas();
-		_ticks = 0;
+		log("Sequencer.socket => stop_response callback : transport state = " + _self._transport_state)
+		if (_self._transport_state !== TransportStates.running) return;
+		
+		for (var i = 0; i < _self._sequencer_events.length; i++) {
+			_self._audiolet.scheduler.stop(_self._sequencer_events[i]);
+		}
+		
+		_self._transport_state = TransportStates.stopped;
   	});
 
 	this._socket.on('client_init_response', function (x) {
@@ -162,7 +220,6 @@ function Sequencer(host, sessionId, clientId, clock, canvas, audio_objects) {
 			_self._states.push(arr);
 		}
 		
-		_self._clock.setPosition(x.pos);
 		_self.refreshCanvas();
 		
 		if (x.transport_state === TransportStates.running) _self.start();
@@ -176,7 +233,11 @@ function Sequencer(host, sessionId, clientId, clock, canvas, audio_objects) {
 	
 	this._socket.on('clear_response', function(x) {
 		log("Sequencer.socket => clear_response callback")
-		_self.initializeState(true);
+		for (var i = 0; i < _self._states.length; i++) {
+			for (var j = 0; j < _self._states[i].length; j++) {
+				_self._states[i][j] = 0;
+			}
+		}
 		_self.refreshCanvas();
 	});
 	
@@ -213,10 +274,6 @@ Sequencer.prototype.getClientId = function() {
 	return this._clientId;
 }
 
-Sequencer.prototype.getClock = function() {
-	return this._clock;
-}
-
 Sequencer.prototype.getCanvas = function() {
 	return this._canvas;
 }
@@ -225,9 +282,25 @@ Sequencer.prototype.getSocket = function() {
 	return this._socket;
 }
 
+Sequencer.prototype.getBpm = function() {
+	return this._bpm;
+}
+
+Sequencer.prototype.getStepsPerBar = function() {
+	return this._stepsPerBar;
+}
+
+Sequencer.prototype.getBars = function() {
+	return this._bars;
+}
+
+Sequencer.prototype.getPosition = function() {
+	return this._position;
+}
+
 Sequencer.prototype.getNumColumns = function() {
 	// all bars on same row
-	return ( this._clock.getStepsPerBar() * this._clock.getBars() );
+	return ( this._stepsPerBar * this._bars );
 }
 
 Sequencer.prototype.getNumRows = function() {
@@ -278,9 +351,9 @@ Sequencer.prototype.init = function() {
 	var data = { 
 		sessionId: this._sessionId, 
 	 	clientId: this._clientId,
-	 	bpm: this._clock.getBpm(), 
-	 	stepsPerBar: this._clock.getStepsPerBar(), 
-	 	bars: this._clock.getBars(),
+	 	bpm: this.getBpm(), 
+	 	stepsPerBar: this.getStepsPerBar(), 
+	 	bars: this.getBars(),
 	 	tracks: this._audio_objects.length };
 	
 	this.send_message("client_init", data);
@@ -320,7 +393,7 @@ Sequencer.prototype.refreshCanvas = function() {
 	var canv = $(this._canvas);
 	var cols = this.getNumColumns();
 	var rows = this.getNumRows();
-	var pos = this._clock.getPosition();
+	var pos = this.getPosition();
 	var width = parseInt(canv.width() / cols);
 	var height = parseInt(canv.height() / rows);
 	
@@ -401,12 +474,5 @@ Sequencer.prototype.getCanvasCellPosition = function(evt) {
 }
 
 Sequencer.prototype.triggerAudio = function() {
-	for (var o = 0; o < this._audio_objects.length; o++) {
-		var level = this._states[o][this._clock.getPosition()];
-		if (level > 0) {
-			this._audio_objects[o].currentTime = 0;
-			this._audio_objects[o].volume = Math.max(0, Math.min(1.0, level));
-			this._audio_objects[o].play();
-		}
-	}
+
 }

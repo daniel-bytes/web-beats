@@ -30,7 +30,13 @@ function WebServer(port, express, fs, log_function) {
 	this._app.get("/js/*", function(request, response) {
 		log("received request for route '/js/*' : ", request.params)
 		var contentType = request.params[0].toLowerCase().indexOf('.swf') > 0 ? 'application/x-shockwave-flash' : 'application/javascript';
-		_self.serveFile(request, response, __dirname + '/views/js/' + request.params[0], 'text/javascript');
+		_self.serveFile(request, response, __dirname + '/views/js/' + request.params[0], contentType);
+	});
+	
+	this._app.get("/assets/*.wav", function(request, response) {
+		log("received request for route /assets/*.wav : " + request.params);
+		var contentType = "audio/wav";
+		_self.serveFile(request, response, __dirname + "/assets/" + request.params[0] + ".wav", contentType);
 	});
 }
 

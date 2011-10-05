@@ -90,10 +90,10 @@ function Sequencer(host, sessionId, clientId, clock, canvas, audio_objects) {
 
 		var current_pos = _self.getCanvasCellPosition(evt);
 		
-		if (current_pos == null) return;
+		if (current_pos == null || current_pos.y_cell !== _click_pos.y_cell) return;
 		
 		// TODO: delta should be based on initial click position
-		var value = (1.0 - current_pos.y_pos)
+		var value = (1.0 - current_pos.y_pos);
 		
 		if (value !== _click_pos.initial_value) {
 			_self.set_state( _click_pos.y_cell, _click_pos.x_cell, value );

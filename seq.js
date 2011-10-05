@@ -31,7 +31,14 @@ function Sequencer(bpm, stepsPerBar, bars, tracks, socket, log_function) {
 	for (var o = 0; o < this._tracks; o++) {
 		var arr = [];
 		for (var i = 0; i < (this._bars * this._stepsPerBar); i++) {
-			arr.push(i % 4 === 0 ? 1 : 0);
+			// initial pattern: this hardcoded stuff will go away eventually
+			switch(o) {
+				case 0: arr.push(i % 4 === 0 ? 1 : 0); break;
+				case 1: arr.push(i % 8 === 4 ? 1 : 0); break;
+				case 2: arr.push(i % 8 === 0 || i % 8 === 1 || i % 8 === 4 ? .5 : 0); break;
+				case 3: arr.push(i % 4 === 2 ? .5 : 0); break;
+			}
+			
 		}
 		this._states.push(arr);
 	}

@@ -44,7 +44,7 @@ function Sequencer(host, sessionId, clientId, clock, canvas, audio_objects) {
 	
 	this._clock.setPropertyChangedCallback(function(c, prop) {
 		log("Sequencer.clock => propertyCallback: " + prop)
-		_self.initializeState(false);
+//		_self.initializeState(false);
 		_self.refreshCanvas();
 	});
 	
@@ -153,15 +153,12 @@ function Sequencer(host, sessionId, clientId, clock, canvas, audio_objects) {
 	this._socket.on('client_init_response', function (x) {
 		log("Sequencer.socket => init_response callback")
 		_self._states = [];
-		
-		for (var o = 0; o < x.states.length; o++) {
-			// new track info
+
+		for (var i = 0; i < x.states.length; i++) {
 			var arr = [];
-			var track = x.states[o];
-			for (var i = 0; i < track.length; i++) {
-				arr.push( track[i] );
+			for (var j = 0; j < x.states[i].length; j++) {
+				arr.push(x.states[i][j])
 			}
-			// push track info as new track
 			_self._states.push(arr);
 		}
 		

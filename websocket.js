@@ -12,12 +12,18 @@ function WebSocket(socket_io, fs, seq, application_server, log_function) {
 	log("new WebSocket created");
 
 	// begin listening
+	
 	log("messaging server begin listening on port " + this._application_server.getPort());
 	this._io = this._socket_io.listen(this._application_server.getApplication());
 	
-	// define all messages
 	var _self = this;
-
+	
+	this._io.configure(function () { 
+	  _self._io.set("transports", ["xhr-polling"]); 
+	  _self._io.set("polling duration", 10); 
+	});
+	
+	// define all messages
 	this._io.sockets.on('disconnect', function(socket) {
 		log("'disconnect' message received");
 	});

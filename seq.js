@@ -133,15 +133,6 @@ Sequencer.prototype.start = function() {
 	this._transport_state = TransportStates.running;
 }
 
-Sequencer.prototype.restart = function() {
-	this._pos = 0;
-	this._transport_state = TransportStates.running;
-}
-
-Sequencer.prototype.pause = function() {
-	this._transport_state = TransportStates.paused;
-}
-
 Sequencer.prototype.stop = function() {
 	this._pos = 0;
 	this._transport_state = TransportStates.stopped;

@@ -52,26 +52,6 @@ function WebSocket(socket_io, fs, seq, application_server, log_function) {
 			}
 		});
 
-		socket.on('restart', function(value) {
-			log("'restart' message received", value);
-			var sq = _self.getSeq(value.sessionId, value.clientId);
-
-			if (sq) {
-				sq.restart();
-				sq.sendResponse("restart", sq.getPosition());
-			}
-		});
-
-		socket.on('pause', function(value) {
-			log("'pause' message received", value);
-			var sq = _self.getSeq(value.sessionId, value.clientId);
-
-			if (sq) {
-				sq.pause();
-				sq.sendResponse("pause", sq.getPosition());
-			}
-		});
-
 		socket.on('stop', function(value) {
 			log("'pause' message received", value);
 			var sq = _self.getSeq(value.sessionId, value.clientId);

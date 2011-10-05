@@ -26,12 +26,12 @@ function Sequencer(host, sessionId, clientId, bpm, stepsPerBar, bars, canvas, sa
 	this._sampleRate = 44100;
 	this._latency = 1000 * this._bufferSize / this._sampleRate;
 	this._audiolet = new Audiolet(this._sampleRate, 2, this._bufferSize);
-	this._audiolet.scheduler.setTempo(this._bpm);
 	this._audio_objects = [];
     this._durations = [1 / (stepsPerBar / 4)];
 	this._transport_state = TransportStates.stopped;
 	this._position = 0;
 	this._sequencer_events = [];
+	this._audiolet.scheduler.setTempo(this._bpm);
 	
 	for (var i = 0; i < samples.length; i++) {
 		this._audio_objects.push(
@@ -55,9 +55,8 @@ function Sequencer(host, sessionId, clientId, bpm, stepsPerBar, bars, canvas, sa
 					   on: new Date(),
 					   active: false };
 	
-	// -- sequencer: see https://github.com/oampo/Audiolet/blob/master/examples/drum-machine/js/audiolet_app.js)
 	
-	// -- canvas handlers
+	// -- canvas/UI event handlers
 	this._canvas.addEventListener('mousedown', function(evt) {
 		var temp_pos = _self.getCanvasCellPosition(evt);
 		
@@ -83,15 +82,13 @@ function Sequencer(host, sessionId, clientId, bpm, stepsPerBar, bars, canvas, sa
 		_click_pos = temp_pos;
 	});
 
-	// need to attach to the outer-most object's mouseup event to ensure we always trap it.
 	get_parent_of_type(this._canvas, "html").addEventListener("mouseup", function(evt) {
+		// NOTE: we are attaching to the outer-most object's mouseup event to ensure we always trap it even if mouse is outside the canvas
 		if (_click_pos.active === true) {
 			_click_pos.active = false;
 			_click_pos.on = new Date();
 		}
 	});
-
-	//----
 	
     this._canvas.addEventListener('mousemove', function(evt) {
 		if (_click_pos == null || _click_pos.active !== true) return;
@@ -108,118 +105,31 @@ function Sequencer(host, sessionId, clientId, bpm, stepsPerBar, bars, canvas, sa
 			_click_pos.initial_value = value;
 		}
 	});
-
-/*
-	this._canvas.onclick = function(evt) {
-		log("Sequencer.canvas => onclick callback")
-		var result = _self.getCellPosition(evt);
-		
-		if (result != null) {
-			_self.toggle_state(result.track, result.pos);
-		}
-	 };
-*/		
-	/* ONLY USED WHEN RUNNING SERVER-SIDE CLOCK!!! 
-	this._socket.on('clock', function (x) {
-		if (x !== this._pos) {
-			_self._lastpos = _self._pos;
-			_self._pos = x;
-			call_handlers(_self._on_clock_handlers, _self);
-		}
-  	});
-	*/
 	
-	// -- socket handlers
+	
+	// -- socket message handlers
 	this._socket.on('start_response', function (x) {
 		log("Sequencer.socket => start_response callback : transport state = " + _self._transport_state)
 		if (_self._transport_state === TransportStates.running) return;
-
-		_self._position = 0;
-		
-		_self._sequencer_events[0] = _self._audiolet.scheduler.play(
-			[new PSequence(_self._states[0], Infinity)],
-			new PSequence(_self._durations, Infinity),
-			function(p) {
-				if (p > 0) {
-					_self._audio_objects[0].getGain().gain.setValue(p * p);
-			    	_self._audio_objects[0].getTrigger().trigger.setValue(1);
-				}
-
-				_self.refreshCanvas();
-				if (++_self._position >= _self._states[0].length) _self._position = 0;
-			}
-	    );
 	
-		_self._sequencer_events[1] = _self._audiolet.scheduler.play(
-			[new PSequence(_self._states[1], Infinity)],
-			new PSequence(_self._durations, Infinity),
-			function(p) {
-				if (p > 0) {
-					_self._audio_objects[1].getGain().gain.setValue(p * p);
-			    	_self._audio_objects[1].getTrigger().trigger.setValue(1);
-				}
-			}
-	    );
-	
-		_self._sequencer_events[2] = _self._audiolet.scheduler.play(
-			[new PSequence(_self._states[2], Infinity)],
-			new PSequence(_self._durations, Infinity),
-			function(p) {
-				if (p > 0) {
-					_self._audio_objects[2].getGain().gain.setValue(p * p);
-			    	_self._audio_objects[2].getTrigger().trigger.setValue(1);
-				}
-			}
-	    );
-	
-		_self._sequencer_events[3] = _self._audiolet.scheduler.play(
-			[new PSequence(_self._states[3], Infinity)],
-			new PSequence(_self._durations, Infinity),
-			function(p) {
-				if (p > 0) {
-					_self._audio_objects[3].getGain().gain.setValue(p * p);
-			    	_self._audio_objects[3].getTrigger().trigger.setValue(1);
-				}
-			}
-	    );
-	
+		_self.setup_patterns();
+		_self.refreshCanvas();
 		_self._transport_state = TransportStates.running;
 	});
-
-	this._socket.on('restart_response', function (x) {
-		log("Sequencer.socket => restart_response callback")
-// TODO
-  	});
-
-	this._socket.on('pause_response', function (x) {
-		log("Sequencer.socket => pause_response callback")
-// TODO
-		_ticks = 0;
-  	});
 
 	this._socket.on('stop_response', function (x) {
 		log("Sequencer.socket => stop_response callback : transport state = " + _self._transport_state)
 		if (_self._transport_state !== TransportStates.running) return;
 		
-		for (var i = 0; i < _self._sequencer_events.length; i++) {
-			_self._audiolet.scheduler.stop(_self._sequencer_events[i]);
-		}
-		
+		_self.teardown_patterns();
+		_self.refreshCanvas();
 		_self._transport_state = TransportStates.stopped;
   	});
 
 	this._socket.on('client_init_response', function (x) {
 		log("Sequencer.socket => init_response callback")
-		_self._states = [];
-
-		for (var i = 0; i < x.states.length; i++) {
-			var arr = [];
-			for (var j = 0; j < x.states[i].length; j++) {
-				arr.push(x.states[i][j])
-			}
-			_self._states.push(arr);
-		}
 		
+		_self.init_states_from_server(x.states);
 		_self.refreshCanvas();
 		
 		if (x.transport_state === TransportStates.running) _self.start();
@@ -233,27 +143,13 @@ function Sequencer(host, sessionId, clientId, bpm, stepsPerBar, bars, canvas, sa
 	
 	this._socket.on('clear_response', function(x) {
 		log("Sequencer.socket => clear_response callback")
-		for (var i = 0; i < _self._states.length; i++) {
-			for (var j = 0; j < _self._states[i].length; j++) {
-				_self._states[i][j] = 0;
-			}
-		}
+		_self.clear_states();
 		_self.refreshCanvas();
 	});
 	
 	this._socket.on('query_states_response', function(x) {
 		log("Sequencer.socket => query_states_response callback")
-		_self._states = [];
-		
-		for (var o = 0; o < x.states.length; o++) {
-			var arr = [];
-			var track = x.states[o];
-			for (var i = 0; i < track.length; i++) {
-				arr.push( track[i] );
-			}
-			_self._states.push(arr);
-		}
-				
+		_self.init_states_from_server(x.states);
 		_self.refreshCanvas();
 	});	
 	
@@ -284,6 +180,11 @@ Sequencer.prototype.getSocket = function() {
 
 Sequencer.prototype.getBpm = function() {
 	return this._bpm;
+}
+
+Sequencer.prototype.setBpm = function(bpm) {
+	this._bpm = bpm;
+	this._audiolet.scheduler.setTempo(this._bpm);
 }
 
 Sequencer.prototype.getStepsPerBar = function() {
@@ -317,14 +218,6 @@ Sequencer.prototype.start = function() {
 	this.send_message("start", { sessionId: this._sessionId, clientId: this._clientId });
 }
 
-Sequencer.prototype.restart = function() {
-	this.send_message("restart", { sessionId: this._sessionId, clientId: this._clientId });
-}
-
-Sequencer.prototype.pause = function() {
-	this.send_message("pause", { sessionId: this._sessionId, clientId: this._clientId });
-}
-
 Sequencer.prototype.stop = function() {
 	this.send_message("stop", { sessionId: this._sessionId, clientId: this._clientId });
 }
@@ -337,9 +230,9 @@ Sequencer.prototype.set_state = function(track, pos, state) {
 	this.send_message("set_state", { sessionId: this._sessionId, clientId: this._clientId, track: track, pos: pos, state: state });
 }
 
-Sequencer.prototype.set_states = function(track, state) {
-	for (var i = 0; i < this._states[track].length; i++) {
-		this.send_message("set_state", { sessionId: this._sessionId, clientId: this._clientId, track: track, pos: i, state: state });
+Sequencer.prototype.set_states = function(track, states) {
+	for (var i = 0; i < states.length; i++) {
+		this.send_message("set_state", { sessionId: this._sessionId, clientId: this._clientId, track: track, pos: i, state: states[i] });
 	}
 }
 
@@ -360,6 +253,82 @@ Sequencer.prototype.init = function() {
 }
 
 // local methods
+Sequencer.prototype.init_states_from_server = function(server_states) {
+	this._states = [];
+
+	for (var i = 0; i < server_states.length; i++) {
+		var arr = [];
+		for (var j = 0; j < server_states[i].length; j++) {
+			arr.push(server_states[i][j])
+		}
+		this._states.push(arr);
+	}
+}
+
+Sequencer.prototype.clear_states = function() {
+	for (var i = 0; i < this._states.length; i++) {
+		for (var j = 0; j < this._states[i].length; j++) {
+			this._states[i][j] = 0;
+		}
+	}
+}
+
+Sequencer.prototype.setup_patterns = function() {
+	var _self = this;
+	_self._sequencer_events[0] = _self._audiolet.scheduler.play(
+		[new PSequence(_self._states[0], Infinity)],
+		new PSequence(_self._durations, Infinity),
+		function(p) {
+			if (p > 0) {
+				_self._audio_objects[0].getGain().gain.setValue(p * p);
+		    	_self._audio_objects[0].getTrigger().trigger.setValue(1);
+			}
+
+			_self.refreshCanvas();
+			if (++_self._position >= _self._states[0].length) _self._position = 0;
+		}
+    );
+
+	_self._sequencer_events[1] = _self._audiolet.scheduler.play(
+		[new PSequence(_self._states[1], Infinity)],
+		new PSequence(_self._durations, Infinity),
+		function(p) {
+			if (p > 0) {
+				_self._audio_objects[1].getGain().gain.setValue(p * p);
+		    	_self._audio_objects[1].getTrigger().trigger.setValue(1);
+			}
+		}
+    );
+
+	_self._sequencer_events[2] = _self._audiolet.scheduler.play(
+		[new PSequence(_self._states[2], Infinity)],
+		new PSequence(_self._durations, Infinity),
+		function(p) {
+			if (p > 0) {
+				_self._audio_objects[2].getGain().gain.setValue(p * p);
+		    	_self._audio_objects[2].getTrigger().trigger.setValue(1);
+			}
+		}
+    );
+
+	_self._sequencer_events[3] = _self._audiolet.scheduler.play(
+		[new PSequence(_self._states[3], Infinity)],
+		new PSequence(_self._durations, Infinity),
+		function(p) {
+			if (p > 0) {
+				_self._audio_objects[3].getGain().gain.setValue(p * p);
+		    	_self._audio_objects[3].getTrigger().trigger.setValue(1);
+			}
+		}
+    );
+}
+
+Sequencer.prototype.teardown_patterns = function() {
+	for (var i = 0; i < this._sequencer_events.length; i++) {
+		this._audiolet.scheduler.stop(this._sequencer_events[i]);
+	}
+}
+
 Sequencer.prototype.send_message = function(name, data) {
 	log("Sequencer.send_message: " + name);
 
